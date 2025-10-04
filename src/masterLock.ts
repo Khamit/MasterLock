@@ -127,7 +127,25 @@ export async function toggleEncryptSelection(encrypt: boolean): Promise<boolean>
     // возвращаем успех операции | return success
     return true;
 }
+// Команды для сборки расширения
 // npm install
 // npx tsc
-// code .
-// F5
+
+// VS Code расширения собираются через утилиту vsce
+// npm install -g vsce
+/*Также часто используют ovsx (для публикации в Open VSX,
+ например в VSCodium), но для Marketplace нужен именно vsce. */
+// Сборка
+// vsce package
+
+/*GitHub репозиторий инструкций:
+В какой ветке  - git branch 
+
+Обновить ветку DEV 
+git add .
+git commit -m "fix: обновил icon и package.json"
+git push origin dev
+
+
+
+*/

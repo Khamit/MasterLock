@@ -7,6 +7,57 @@
 
 MasterLock is a VSCode extension designed to protect sensitive project data by encrypting it with system-level security. It helps developers securely manage passwords, API keys, and other confidential information within their projects without exposing them in version control.
 
+## MasterLock
+
+ Protect and encrypt your secrets in VSCode.
+
+## 🔐 Features
+
+MasterLock helps you hide and protect sensitive information directly in VSCode.
+
+### Core Functionality
+
+1. **Key Management via Keytar**  
+   - MasterLock creates and stores a unique key in the system’s secure storage (via [keytar](https://github.com/atom/node-keytar)).  
+   - The key is generated from the password you provide using SHA-256.  
+   - Entering the wrong password will prevent access to encrypted content.  
+
+2. **Encryption & Decryption**  
+   - Uses **AES (CryptoJS)** for strong symmetric encryption.  
+   - Available commands:  
+     - `MasterLock: Encrypt Selection` — encrypt the selected text.  
+     - `MasterLock: Decrypt Selection` — decrypt the selected text.  
+
+3. **File Format Support**  
+   - Rules (`FileRule`) are applied depending on the file extension.  
+   - Sensitive keys are automatically detected (e.g., `password`, `key`, `token`, secret`).  
+
+4. **Recursive Object Handling**  
+   - Works with strings, JSON, YAML, and other configuration objects.  
+   - Nested fields are parsed and processed recursively.  
+
+5. **VSCode Integration**  
+   - Commands are available via the editor’s context menu when text is selected.  
+   - Status bar shows the current state: 🔓 `MasterUnlocked` or 🔒 `MasterLocked`.  
+   - Secure password input is requested via VSCode’s `InputBox`.  
+
+### Example Usage
+
+1. Select a block of code or JSON containing sensitive data.  
+2. Open the Command Palette (`Ctrl+Shift+P`) → choose `MasterLock: Encrypt Selection`.  
+3. Enter your password (stored securely in the system’s keychain).  
+4. The selected text will be replaced with the encrypted version.  
+
+To decrypt, repeat the steps and select `MasterLock: Decrypt Selection`.  
+
+### Sensitive Data Types
+
+By default, MasterLock detects and processes keys such as:  
+- `password`, `pass`, `pwd`  
+- `key`, `secret`, `token`  
+- and similar variations  
+
+
 ## Features
 
 - 🔒 **Secure Encryption**: Encrypts sensitive data using system-level security  

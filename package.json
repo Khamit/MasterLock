@@ -7,7 +7,7 @@
   "engines": {
     "vscode": "^1.104.0"
   },
-  "icon": "resources/logo.svg",
+  "icon": "resources/logo.png",
   "categories": ["Other"],
   "activationEvents": [
     "onCommand:masterlock.toggleSelection"

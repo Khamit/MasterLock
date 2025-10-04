@@ -11,7 +11,7 @@ export const fileRules: FileRule[] = [
     extension: '.json',
     parse: JSON.parse,
     stringify: (obj: any) => JSON.stringify(obj, null, 2), // сохраняем форматирование
-    sensitiveKeys: ['user', 'login', 'secret', 'api', 'pass', 'password', 'token', 'key']
+    sensitiveKeys: ['user','auth', 'login', 'secret', 'api', 'pass', 'password', 'token', 'key']
   },
   {
     extension: '.env',
