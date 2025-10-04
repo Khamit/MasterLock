@@ -185,8 +185,10 @@ For support and questions:
 
 ## Version History
 
-### 1.0.7
-
+### 1.0.8
+1.0.7 package.json → version 1.0.8.
+- added logo - for UI
+-----------------------------------------------------
 - Initial release  
 - Basic encryption/decryption functionality  
 - VSCode integration  
