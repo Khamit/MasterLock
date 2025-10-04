@@ -137,3 +137,15 @@ export async function toggleEncryptSelection(encrypt: boolean): Promise<boolean>
  например в VSCodium), но для Marketplace нужен именно vsce. */
 // Сборка
 // vsce package
+
+/*GitHub репозиторий инструкций:
+В какой ветке  - git branch 
+
+Обновить ветку DEV 
+git add .
+git commit -m "fix: обновил icon и package.json"
+git push origin dev
+
+
+
+*/
