@@ -9,8 +9,17 @@
     "moduleResolution": "node",
     "resolveJsonModule": true,
     "skipLibCheck": true,
-    "lib": ["es6", "dom"],
-    "types": ["node", "vscode"]
+    "lib": [
+      "es6",
+      "dom"
+    ],
+    "types": [
+      "node",
+      "vscode"
+    ]
   },
-  "exclude": ["node_modules", ".vscode-test"]
+  "exclude": [
+    "node_modules",
+    ".vscode-test"
+  ]
 }
