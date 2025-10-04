@@ -47,9 +47,10 @@ exports.deactivate = deactivate;
 const vscode = __importStar(require("vscode"));
 const i18n_1 = require("./i18n");
 const masterLock_1 = require("./masterLock");
+const path = __importStar(require("path"));
 let statusBar;
 function activate(context) {
-    // создаём статус-бар
+    // создаём status bar item
     statusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
     statusBar.command = 'masterlock.toggleSelection';
     context.subscriptions.push(statusBar);
@@ -68,13 +69,11 @@ function activate(context) {
         const isEncrypted = selectionText.includes('U2FsdGVk'); // простая проверка CryptoJS
         const result = yield (0, masterLock_1.toggleEncryptSelection)(!isEncrypted);
         if (!result) {
-            // Показываем уведомления только при отмене операции
             return;
         }
         const newStatus = !isEncrypted;
         vscode.commands.executeCommand('setContext', 'masterlock.isEncrypted', newStatus);
         updateStatusBar(newStatus);
-        // Показываем информационное сообщение об успешной операции
         if (newStatus) {
             vscode.window.showInformationMessage((0, i18n_1.t)('info_encrypted'));
         }
@@ -83,6 +82,15 @@ function activate(context) {
         }
     }));
     context.subscriptions.push(toggleDisposable);
+    // команда для открытия webview с логотипом
+    const logoDisposable = vscode.commands.registerCommand('masterlock.showLogo', () => {
+        const panel = vscode.window.createWebviewPanel('masterlockLogo', 'MasterLock Logo', vscode.ViewColumn.One, { enableScripts: true });
+        // путь до ресурса (logo.svg в resources/)
+        const logoPath = vscode.Uri.file(path.join(context.extensionPath, 'resources', 'logo.svg'));
+        const logoUri = panel.webview.asWebviewUri(logoPath);
+        panel.webview.html = getWebviewContent(logoUri.toString());
+    });
+    context.subscriptions.push(logoDisposable);
 }
 function updateStatusBar(isEncrypted) {
     if (isEncrypted) {
@@ -97,4 +105,33 @@ function updateStatusBar(isEncrypted) {
 function deactivate() {
     if (statusBar)
         statusBar.dispose();
+}
+// отдельная функция для html содержимого
+function getWebviewContent(logoUri) {
+    return `
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>MasterLock Logo</title>
+            <style>
+                body {
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    height: 100vh;
+                    background: #1e1e1e;
+                }
+                img {
+                    width: 200px;
+                    height: auto;
+                }
+            </style>
+        </head>
+        <body>
+            <img src="${logoUri}" alt="MasterLock Logo" />
+        </body>
+        </html>
+    `;
 }

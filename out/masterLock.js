@@ -49,8 +49,9 @@ const os = __importStar(require("os"));
 const vscode = __importStar(require("vscode"));
 const i18n_1 = require("./i18n");
 const struct_1 = require("./struct");
-const SERVICE_NAME = 'MasterLock';
-const ACCOUNT_NAME = os.userInfo().username;
+const SERVICE_NAME = 'MasterLock'; // имя сервиса для keytar
+const ACCOUNT_NAME = os.userInfo().username; // имя аккаунта для keytar
+// Получаем или создаём ключ на основе пароля
 function getKey(password) {
     return __awaiter(this, void 0, void 0, function* () {
         const storedKey = yield keytar.getPassword(SERVICE_NAME, ACCOUNT_NAME);
@@ -67,6 +68,7 @@ function getKey(password) {
         return key;
     });
 }
+// Шифруем и расшифровываем строки
 function encryptString(text, password) {
     return __awaiter(this, void 0, void 0, function* () {
         const key = yield getKey(password);
@@ -75,6 +77,7 @@ function encryptString(text, password) {
         return CryptoJS.AES.encrypt(text, key).toString();
     });
 }
+// Расшифровка строки
 function decryptString(text, password) {
     return __awaiter(this, void 0, void 0, function* () {
         const key = yield getKey(password);
@@ -88,6 +91,7 @@ function decryptString(text, password) {
         return result;
     });
 }
+// Рекурсивно обрабатываем объект, шифруя/расшифровывая чувствительные поля
 function processObject(obj, password, encrypt, sensitiveKeys) {
     return __awaiter(this, void 0, void 0, function* () {
         for (const key in obj) {
@@ -108,6 +112,7 @@ function processObject(obj, password, encrypt, sensitiveKeys) {
         }
     });
 }
+// Основная функция для шифрования/расшифровки выделенного текста
 function toggleEncryptSelection(encrypt) {
     return __awaiter(this, void 0, void 0, function* () {
         const editor = vscode.window.activeTextEditor;
@@ -121,18 +126,22 @@ function toggleEncryptSelection(encrypt) {
             return false;
         const password = yield vscode.window.showInputBox({
             prompt: encrypt ? (0, i18n_1.t)('prompt_encrypt') : (0, i18n_1.t)('prompt_decrypt'),
-            password: true
+            password: true // скрытие ввода | hades input
         });
+        // cancel on empty input
         if (!password) {
             vscode.window.showWarningMessage((0, i18n_1.t)('warning_no_password'));
             return false;
         }
+        // определяем правило по расширению файла
         const ext = editor.document.fileName.split('.').pop() || '';
         const rule = struct_1.fileRules.find(r => r.extension.replace('.', '') === ext.toLowerCase());
+        // если правило не найдено, показываем errror
         if (!rule) {
             vscode.window.showErrorMessage((0, i18n_1.t)('error_unsupported_file', { ext }));
             return false;
         }
+        // парсим текст в объект | parse text to object by rule
         let parsed;
         try {
             parsed = rule.parse(text);
@@ -142,9 +151,11 @@ function toggleEncryptSelection(encrypt) {
             return false;
         }
         try {
+            // await обрабатываем объект
             yield processObject(parsed, password, encrypt, rule.sensitiveKeys);
         }
         catch (err) {
+            // показываем конкретные ошибки
             if (err.message === (0, i18n_1.t)('error_wrong_password')) {
                 vscode.window.showErrorMessage((0, i18n_1.t)('error_wrong_password'));
             }
@@ -156,10 +167,17 @@ function toggleEncryptSelection(encrypt) {
             }
             return false;
         }
+        // конвертируем обратно в строку | convert back to string
         const newText = rule.stringify(parsed);
         yield editor.edit(editBuilder => {
+            // заменяем выделенный текст на новый | replace selected text with new one
             editBuilder.replace(selection, newText);
         });
+        // возвращаем успех операции | return success
         return true;
     });
 }
+// npm install
+// npx tsc
+// code .
+// F5
