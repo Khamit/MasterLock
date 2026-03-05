@@ -1,16 +1,20 @@
 {
   "name": "masterlock",
   "displayName": "MasterLock",
-  "description": "Encrypt sensitive data in JSON and .env files",
-  "version": "1.0.9",
+  "description": "Encrypt sensitive data in JSON and .env files with 2h auto-unlock",
+  "version": "1.0.10",
   "publisher": "Khamit",
   "engines": {
     "vscode": "^1.104.0"
   },
   "icon": "resources/logo.png",
-  "categories": ["Other"],
+  "categories": [
+    "Other"
+  ],
   "activationEvents": [
-    "onCommand:masterlock.toggleSelection"
+    "onCommand:masterlock.toggleSelection",
+    "onCommand:masterlock.showLogo",
+    "onStartupFinished"
   ],
   "main": "./out/extension.js",
   "scripts": {
@@ -27,9 +31,13 @@
         "title": "MasterLock encrypt"
       },
       {
-      "command": "masterlock.showLogo",
-      "title": "MasterLock: Show Logo"
-    }
+        "command": "masterlock.showLogo",
+        "title": "MasterLock: Show Logo"
+      },
+      {
+        "command": "masterlock.test",
+        "title": "MasterLock: Test"
+      }
     ],
     "menus": {
       "editor/context": [
@@ -41,7 +49,7 @@
             "light": "resources/light/unlock.svg",
             "dark": "resources/dark/unlock.svg"
           },
-          "title": "MasterUnlocked"
+          "title": "MasterUnlock"
         },
         {
           "command": "masterlock.toggleSelection",
@@ -51,7 +59,7 @@
             "light": "resources/light/lock.svg",
             "dark": "resources/dark/lock.svg"
           },
-          "title": "MasterLocked"
+          "title": "MasterLock"
         }
       ]
     }
@@ -66,7 +74,7 @@
     "crypto-js": "^4.2.0",
     "keytar": "^7.9.0"
   },
-    "repository": {
+  "repository": {
     "type": "git",
     "url": "https://github.com/Khamit/MasterLock.git"
   }
