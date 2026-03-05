@@ -310,22 +310,39 @@ export async function toggleEncryptSelection(
         }
     });
 }
+
 // Команды для сборки расширения
 // npm install
 // npx tsc
 
 // VS Code расширения собираются через утилиту vsce
 // npm install -g vsce
-/*Также часто используют ovsx (для публикации в Open VSX,
- например в VSCodium), но для Marketplace нужен именно vsce. */
+
+/*
+Также часто используют ovsx (для публикации в Open VSX,
+ например в VSCodium), но для Marketplace нужен именно vsce.
+ */
+
 // Сборка
 // vsce package
 
-/*GitHub репозиторий инструкций:
+/*
+GitHub репозиторий инструкций:
 В какой ветке  - git branch 
 
 Обновить ветку DEV 
 git add .
 git commit -m "fix: обновил icon и package.json"
 git push origin dev
+===================
+# 1 обновить версию
+package.json → 1.0.11
+
+# 2 закоммитить
+git add package.json
+git commit -m "release 1.0.11"
+git push
+
+# 3 опубликовать
+vsce publish
 */
