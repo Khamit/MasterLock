@@ -1,8 +1,8 @@
 {
   "name": "masterlock",
   "displayName": "MasterLock",
-  "description": "Opensource git -  | Hides sensitive data in the project and protects it with a system password.",
-  "version": "1.0.8",
+  "description": "Encrypt sensitive data in JSON and .env files",
+  "version": "1.0.9",
   "publisher": "Khamit",
   "engines": {
     "vscode": "^1.104.0"

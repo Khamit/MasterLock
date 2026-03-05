@@ -1,43 +1,67 @@
-// struct.ts
+// src/struct.ts
 export type FileRule = {
-  extension: string; // расширение файла
-  parse: (text: string) => any; // функция парсинга в объект
-  stringify: (obj: any) => string; // функция превращения объекта обратно в текст
-  sensitiveKeys: string[]; // ключи, которые нужно шифровать
+  extensions: string[]; // список поддерживаемых расширений
+  parse: (text: string) => any; // функция парсинга
+  stringify: (obj: any) => string; // превращение объекта обратно в текст
+  sensitiveKeys: string[]; // ключи для шифрования
 };
 
 export const fileRules: FileRule[] = [
   {
-    extension: '.json',
+    extensions: ['.json'],
     parse: JSON.parse,
-    stringify: (obj: any) => JSON.stringify(obj, null, 2), // сохраняем форматирование
-    sensitiveKeys: ['user','auth', 'login', 'secret', 'api', 'pass', 'password', 'token', 'key']
+    stringify: (obj: any) => JSON.stringify(obj, null, 2),
+    sensitiveKeys: ['user','auth','login','secret','api','pass','password','token','key']
   },
-  {
-    extension: '.env',
-    parse: (text: string) => {
-      const obj: Record<string, string> = {};
-      text.split('\n').forEach(line => {
-        const match = line.match(/^\s*([\w_]+)\s*=\s*(.*)$/);
-        if (match) {
-          obj[match[1]] = match[2];
-        }
-      });
-      return obj;
-    },
-    stringify: (obj: Record<string, string>) => {
-      return Object.entries(obj).map(([k, v]) => `${k}=${v}`).join('\n');
-    },
-    sensitiveKeys: ['USER', 'LOGIN', 'SECRET', 'API', 'PASS', 'PASSWORD', 'TOKEN', 'KEY']
+
+{
+  extensions: [
+    '.env',
+    '.env.local',
+    '.env.development',
+    '.env.production',
+    '.env.test'
+  ],
+
+  parse: (text: string) => {
+    const lines = text.split('\n');
+
+    return lines.map(line => {
+      const match = line.match(/^\s*([\w_]+)\s*=\s*(.*)$/);
+
+      if (match) {
+        return {
+          type: 'pair',
+          key: match[1],
+          value: match[2].replace(/^['"]|['"]$/g, '')
+        };
+      }
+
+      // комментарий или пустая строка
+      return {
+        type: 'raw',
+        value: line
+      };
+    });
   },
-  {
-    extension: '.yml',
-    parse: (text: string) => {
-      // можно подключить yaml-парсер позже
-      // для примера пока простой объект
-      return {}; 
-    },
-    stringify: (obj: any) => '',
-    sensitiveKeys: ['user', 'login', 'secret', 'api', 'pass', 'password', 'token', 'key']
-  }
+
+  stringify: (arr: any[]) => {
+    return arr.map(item => {
+      if (item.type === 'pair') {
+        return `${item.key}=${item.value}`;
+      }
+      return item.value;
+    }).join('\n');
+  },
+
+  sensitiveKeys: ['USER','LOGIN','SECRET','API','PASS','PASSWORD','TOKEN','KEY']
+},
+/*
+{
+  extensions: ['.yml', '.yaml'],
+  parse: (text: string) => require('js-yaml').load(text),
+  stringify: (obj: any) => require('js-yaml').dump(obj),
+  sensitiveKeys: ['user','login','secret','api','pass','password','token','key']
+}
+  */
 ];

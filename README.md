@@ -48,7 +48,12 @@ MasterLock helps you hide and protect sensitive information directly in VSCode.
 3. Enter your password (stored securely in the system’s keychain).  
 4. The selected text will be replaced with the encrypted version.  
 
-To decrypt, repeat the steps and select `MasterLock: Decrypt Selection`.  
+To decrypt, repeat the steps and select `MasterLock: Decrypt Selection`. 
+## 🎬 Demo
+
+Here’s how MasterLock works in action:
+
+![MasterLock Demo](resources/demo.gif)
 
 ### Sensitive Data Types
 
