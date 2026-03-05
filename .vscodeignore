@@ -10,6 +10,14 @@ token.env
 .github/**
 .gitlab/**
 
+# Test
+test-secrets*
+.DS_Store
+.gitignore
+.vscodeignore
+src/**
+node_modules/**
+
 # Source (не включаем исходники, только скомпилированные)
 src/**
 **/*.ts
