@@ -1,108 +1,83 @@
 # MasterLock - VSCode Extension
 
-![VSCode](https://img.shields.io/badge/Visual%2520Studio%2520Code-1.67.0+-blue.svg)
-![TypeScript](https://img.shields.io/badge/TypeScript-4.0+-blue.svg)
+![VSCode](https://img.shields.io/badge/Visual%20Studio%20Code-1.67.0+-blue.svg)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue.svg)
+![Version](https://img.shields.io/badge/version-1.0.10-green.svg)
+![License](https://img.shields.io/badge/license-MIT-orange.svg)
 
-## Overview
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Khamit/MasterLock/main/resources/logo.png" alt="MasterLock Logo" width="200"/>
+</p>
 
-MasterLock is a VSCode extension designed to protect sensitive project data by encrypting it with system-level security. It helps developers securely manage passwords, API keys, and other confidential information within their projects without exposing them in version control.
+<p align="center">
+  <strong>🔒 Protect and encrypt your secrets directly in VSCode</strong>
+</p>
 
-## MasterLock
+##  Overview
 
- Protect and encrypt your secrets in VSCode.
+MasterLock is a powerful VSCode extension designed to protect sensitive project data by encrypting it with system-level security. It helps developers securely manage passwords, API keys, tokens, and other confidential information within their projects without exposing them in version control.
 
-## 🔐 Features
+##  Live Demo
 
-MasterLock helps you hide and protect sensitive information directly in VSCode.
+Watch how MasterLock works in action (1MB GIF):
 
-### Core Functionality
+![MasterLock Demo](https://raw.githubusercontent.com/Khamit/MasterLock/main/src/demo/test800.gif)
 
-1. **Key Management via Keytar**  
-   - MasterLock creates and stores a unique key in the system’s secure storage (via [keytar](https://github.com/atom/node-keytar)).  
-   - The key is generated from the password you provide using SHA-256.  
-   - Entering the wrong password will prevent access to encrypted content.  
+*Demo shows: Selecting sensitive data → Encrypting with password → Verifying encryption → Decrypting back*
 
-2. **Encryption & Decryption**  
-   - Uses **AES (CryptoJS)** for strong symmetric encryption.  
-   - Available commands:  
-     - `MasterLock: Encrypt Selection` — encrypt the selected text.  
-     - `MasterLock: Decrypt Selection` — decrypt the selected text.  
+## ✨ Key Features
 
-3. **File Format Support**  
-   - Rules (`FileRule`) are applied depending on the file extension.  
-   - Sensitive keys are automatically detected (e.g., `password`, `key`, `token`, secret`).  
+### 🔐 **Core Security**
+- **System-Level Key Storage** - Uses [keytar](https://github.com/atom/node-keytar) to securely store encryption keys in the native system keychain
+- **AES-256 Encryption** - Military-grade encryption for your sensitive data
+- **SHA-256 Key Derivation** - Passwords are never stored, only their secure hashes
+- **2-Hour Auto-Unlock** - Automatic decryption after timeout for safety
 
-4. **Recursive Object Handling**  
-   - Works with strings, JSON, YAML, and other configuration objects.  
-   - Nested fields are parsed and processed recursively.  
+###  **Smart Detection**
+- **500+ Sensitive Keywords** - Automatically detects passwords, tokens, API keys, secrets
+- **Pattern-Based Matching** - Recognizes keys even with prefixes/suffixes (e.g., `stripe_live_key`)
+- **Multi-Format Support** - Works with JSON, .env, YAML, INI, and text config files
+- **Recursive Processing** - Handles nested objects and complex structures
 
-5. **VSCode Integration**  
-   - Commands are available via the editor’s context menu when text is selected.  
-   - Status bar shows the current state: 🔓 `MasterUnlocked` or 🔒 `MasterLocked`.  
-   - Secure password input is requested via VSCode’s `InputBox`.  
+###  **VSCode Integration**
+- **Context Menu Commands** - Right-click any selection to encrypt/decrypt
+- **Status Bar Indicator** - Shows current lock state with countdown timer
+- **Password Prompts** - Secure input boxes for password entry
+- **Progress Notifications** - Visual feedback during operations
 
-### Example Usage
-
-1. Select a block of code or JSON containing sensitive data.  
-2. Open the Command Palette (`Ctrl+Shift+P`) → choose `MasterLock: Encrypt Selection`.  
-3. Enter your password (stored securely in the system’s keychain).  
-4. The selected text will be replaced with the encrypted version.  
-
-To decrypt, repeat the steps and select `MasterLock: Decrypt Selection`. 
-## 🎬 Demo
-
-Here’s how MasterLock works in action:
-
-![MasterLock Demo](resources/demo.gif)
-
-### Sensitive Data Types
-
-By default, MasterLock detects and processes keys such as:  
-- `password`, `pass`, `pwd`  
-- `key`, `secret`, `token`  
-- and similar variations  
-
-
-## Features
-
-- 🔒 **Secure Encryption**: Encrypts sensitive data using system-level security  
-- 📁 **Dedicated Storage**: Encrypted data stored in `lock_data/` directory  
-- 🛡️ **Git Protection**: Prevents accidental commits of sensitive information 
-- 🌐 **Internationalization**: Multi-language support built-in 
-
-## Future Features
-- 👁️ **Visual Indicators**: Icons show protected vs unprotected resources **(in future)** 
-- 🔑 **System Integration**: Leverages system authentication for access control  **(in future)** 
-- 🎨 **Theme Support**: Dark and light theme icons **(in future)** 
+### 🌐 **Internationalization**
+- English (en)
+- Russian (ru)
+- Kazakh (kz)
 
 ## Project Structure
 
 ```
 MasterLock/
-├── package.json                 # VSCode extension configuration
-├── package-lock.json            # NPM dependency lock file
-├── tsconfig.json                # TypeScript configuration
-├── README.md                    # Project documentation
-├── lock_data/                   # Folder for storing encrypted project data
-│   └── secrets.enc              # Encrypted secrets file
-├── node_modules/                # NPM dependencies (auto-generated)
-├── out/                         # Compiled JavaScript output
-├── resources/                   # Extension resources and icons
-│   ├── dark/                    # Dark theme icons
-│   │   ├── lock.svg             # Lock icon for dark theme
-│   │   └── unlock.svg           # Unlock icon for dark theme
-│   └── light/                   # Light theme icons
-│       ├── lock.svg             # Lock icon for light theme
-│       └── unlock.svg           # Unlock icon for light theme
-└── src/                         # Source code
-    ├── extension.ts             # Main entry point of the extension
-    ├── masterLock.ts            # Core encryption/decryption logic
-    ├── i18n.ts                  # Internationalization support
-    ├── struct.ts                # Data structure definitions
-    ├── utils.ts                 # Helper functions and utilities
-    └── types/                   # TypeScript type definitions
-        └── crypto/
-            └── crypto-js.d.ts   # Crypto-js type definitions
+├── package.json                 # Extension manifest
+├── tsconfig.json                # TypeScript config
+├── README.md                     # Documentation
+├── 📁 src/                          # Source code
+│   ├── extension.ts              # Main entry point
+│   ├── masterLock.ts             # Core encryption logic
+│   ├── i18n.ts                    # Internationalization
+│   ├── struct.ts                  # Data structures
+│   ├── utils.ts                   # Helper functions
+│   ├── 📁 demo/                       # Demo files
+│   │   └── test800.gif               # Animated demo (1MB)
+│   └── 📁 types/                      # Type definitions
+│       └── crypto/
+│           └── crypto-js.d.ts
+├── 📁 resources/                      # Icons and assets
+│   ├── 📁 light/
+│   │   ├── lock.svg
+│   │   └── unlock.svg
+│   ├── 📁 dark/
+│   │   ├── lock.svg
+│   │   └── unlock.svg
+│   └── logo.png
+└── 📁 lock_data/                      # Encrypted storage
+    └── secrets.enc                    # Your encrypted data
 ```
 
 ## Installation
@@ -149,21 +124,27 @@ out/
 node_modules/
 ```
 
-## Security Notes
+## Troubleshooting
+Common Issues
+Q: "Command not found"
+A: Ensure extension is activated. Try reloading VSCode window.
 
-- 🔐 Encrypted data is stored in `lock_data/secrets.enc`  
-- 🚫 Never commit the `lock_data/` directory to version control  
-- 🔑 Access requires system authentication  
-- 📝 Supports encryption of various sensitive data types  
-- 🌐 Built with internationalization support for global use  
+Q: "Failed to parse file"
+A: Check file format. MasterLock supports JSON, .env, and text config files.
+
+Q: "Wrong password" error
+A: Each project uses its own password. The first password you set becomes the permanent key.
+
+Q: Auto-unlock not working
+A: Check that you haven't manually edited encrypted files. Backup is stored in workspace state.
 
 ## Development
 
 ### Prerequisites
 
-- Node.js  
-- npm  
-- Visual Studio Code  
+- Node.js 16+
+- npm 8+
+- Visual Studio Code 1.67.0+
 
 ### Building from Source
 
@@ -227,25 +208,28 @@ code .
 4. Push to the branch (`git push origin feature/amazing-feature`)  
 5. Open a Pull Request  
 
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Support
-
-For support and questions:
-
-- Open an issue on GitHub  
-- Check the documentation  
-- Review the extension configuration in `package.json`  
-
 ## Version History
 
-### 1.0.9
-1.0.9 - fixed notification UI
-1.0.8 - added logo UI
-1.0.7 package.json → version 1.0.8.
-- added logo - for UI
+### Version 1.0.10 (Latest)
+- Added animated GIF demo - 1MB showcase of MasterLock in action
+- Enhanced file type support - Now supports .txt, .cfg, .conf, .config, .ini, .-operties
+- Expanded sensitive keys - 500+ keywords for better detection
+- Improved auto-unlock - Persistent state across VS Code sessions
+- Better i18n - Enhanced multi-language support
+- Bug fixes - Fixed JSON parsing errors with non-standard structures
+
+Version 1.0.9
+- Fixed notification UI
+- Improved status bar integration
+
+Version 1.0.8
+- Added logo UI
+- Theme-aware icons
+
+Version 1.0.7
+- Initial release
+- Basic encryption/decryption
+- JSON and .env support
 -----------------------------------------------------
 - Initial release  
 - Basic encryption/decryption functionality  
