@@ -1,11 +1,37 @@
-.gitignore
+# Secrets
 token.env
-tsconfig.json
-.vscode/**
-node_modules/**
-out/**
-src/**
+.env
+*.env
+
+# Git
+.gitignore
+.gitattributes
 .git/**
 .github/**
-**/*.map
+.gitlab/**
+
+# Source (не включаем исходники, только скомпилированные)
+src/**
 **/*.ts
+**/*.ts.map
+!out/**  # ЭТО ВАЖНО - разрешаем out папку
+
+# Config
+tsconfig.json
+.vscode/**
+**/tsconfig.json
+**/jsconfig.json
+
+# Docs
+**/*.md
+!README.md
+LICENSE.txt
+
+# Tests
+test/**
+**/test/**
+**/*.test.js
+
+# OS files
+.DS_Store
+Thumbs.db
