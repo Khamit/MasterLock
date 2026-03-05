@@ -2,3 +2,5 @@ test.env
 node_modules/
 out/
 *.vsix
+token.envtoken.env
+.env
