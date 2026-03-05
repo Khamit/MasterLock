@@ -1,0 +1,11 @@
+.gitignore
+token.env
+tsconfig.json
+.vscode/**
+node_modules/**
+out/**
+src/**
+.git/**
+.github/**
+**/*.map
+**/*.ts
