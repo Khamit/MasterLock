@@ -305,20 +305,18 @@ export const fileRules: FileRule[] = [
 
 // Вспомогательная функция для проверки, нужно ли шифровать ключ
 export function shouldEncryptKey(key: string, rule: FileRule): boolean {
-  const keyLower = key.toLowerCase();
-  
-  // Проверяем точное совпадение
-  if (rule.sensitiveKeys.some(k => k.toLowerCase() === keyLower)) {
-    return true;
-  }
-  
-  // Если разрешен паттерн-матчинг, проверяем вхождение
-  if (rule.patternBased) {
-    return rule.sensitiveKeys.some(k => 
-      keyLower.includes(k.toLowerCase()) || 
-      k.toLowerCase().includes(keyLower)
-    );
-  }
-  
-  return false;
+    const keyLower = key.toLowerCase();
+
+    if (rule.sensitiveKeys.some(k => k.toLowerCase() === keyLower)) {
+        return true;
+    }
+
+    if (rule.patternBased) {
+        // Только: ключ пользователя содержит сенситивный паттерн как подстроку
+        // Убрано: k.toLowerCase().includes(keyLower) — короткие ключи ("map", "load", "build")
+        // совпадали с длинными паттернами ("mapper", "loader", "builder")
+        return rule.sensitiveKeys.some(k => keyLower.includes(k.toLowerCase()));
+    }
+
+    return false;
 }

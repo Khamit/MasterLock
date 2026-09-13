@@ -8,6 +8,7 @@ const CHECK_INTERVAL = 60 * 1000; // Проверка каждую минуту
 let unlockTimer: NodeJS.Timeout | undefined;
 let statusBar: vscode.StatusBarItem;
 let intervalTimer: NodeJS.Timeout | undefined;
+let isDisabling = false;
 
 // функция активации расширения
 export function activate(context: vscode.ExtensionContext) {
@@ -78,7 +79,11 @@ export function activate(context: vscode.ExtensionContext) {
             await saveLockState(context, true);
             startAutoUnlockTimer(context);
         } else {
-            // Очищаем таймер при расшифровке
+            // Очищаем все данные при ручной расшифровке
+            await context.workspaceState.update("masterlock_backup", undefined);
+            await context.workspaceState.update("masterlock_file", undefined);
+            await context.workspaceState.update("masterlock_range", undefined);
+            await context.workspaceState.update("masterlock_lock_time", undefined);
             await clearLockState(context);
             if (unlockTimer) {
                 clearTimeout(unlockTimer);
@@ -150,99 +155,92 @@ function startPeriodicCheck(context: vscode.ExtensionContext) {
 
 // Проверка и восстановление если нужно
 async function checkAndRestoreIfNeeded(context: vscode.ExtensionContext) {
+    if (isDisabling) return; // защита от гонки с unlockTimer
+
     const lockTime = context.workspaceState.get<number>("masterlock_lock_time");
     if (!lockTime) return;
-    
+
     const now = Date.now();
     const diff = now - lockTime;
-    
+
     if (diff > AUTO_UNLOCK_TIMEOUT) {
-        console.log('Auto-unlock timeout reached, restoring...');
+        console.log('Auto-unlock timeout reached in periodic check, restoring...');
+        if (unlockTimer) {
+            clearTimeout(unlockTimer); // отменяем таймер, мы уже обрабатываем
+            unlockTimer = undefined;
+        }
         await disableProtection(context);
         await clearLockState(context);
-        
-        vscode.window.showInformationMessage(
-            '🔓 MasterLock: Files were automatically unlocked after 2 hours'
-        );
+        // disableProtection уже показывает уведомление
     }
 }
 
 // проверка авто-разблокировки при старте
 async function checkAutoUnlock(context: vscode.ExtensionContext) {
     console.log('Checking auto-unlock on startup...');
-    
-    // Проверяем, было ли расширение закрыто с активной блокировкой
+
     const wasLocked = context.globalState.get<boolean>("masterlock_was_locked", false);
     const lastClose = context.globalState.get<number>("masterlock_last_close");
     const lockStart = context.globalState.get<number>("masterlock_lock_start");
     const lockTime = context.workspaceState.get<number>("masterlock_lock_time");
-    
-    if (wasLocked && lastClose && lockStart && lockTime) {
-        const timePassed = Date.now() - lockStart;
-        const remaining = AUTO_UNLOCK_TIMEOUT - timePassed;
-        
-        console.log(`Session was closed with active lock. Time passed: ${timePassed/1000/60} minutes`);
-        
+
+    if (!lockTime) return;
+
+    const now = Date.now();
+
+    if (wasLocked && lastClose && lockStart) {
+        const timePassed = now - lockStart;
+
+        console.log(`Session closed with active lock. Time passed: ${timePassed / 1000 / 60} minutes`);
+
         if (timePassed >= AUTO_UNLOCK_TIMEOUT) {
-            // Уже прошло 2 часа, расшифровываем
             console.log('Auto-unlock timeout reached during closed session');
             await disableProtection(context);
             await clearLockState(context);
-            
-            vscode.window.showInformationMessage(
-                '🔓 MasterLock: Files were automatically unlocked while VS Code was closed'
-            );
-        } else {
-            // Еще не прошло 2 часа, возобновляем таймер
-            console.log(`Resuming auto-unlock timer. Remaining: ${remaining/1000/60} minutes`);
-            
-            // Восстанавливаем состояние
-            await context.workspaceState.update("masterlock_lock_time", lockTime);
-            
-            unlockTimer = setTimeout(async () => {
-                const choice = await vscode.window.showWarningMessage(
-                    "MasterLock protection expired. Restore protection?",
-                    "Restore", "Disable"
-                );
-                
-                if (choice === "Restore") {
-                    startAutoUnlockTimer(context);
-                } else {
-                    await disableProtection(context);
-                    await clearLockState(context);
-                }
-            }, remaining);
-            
-            // Обновляем статус бар
-            vscode.commands.executeCommand('setContext', 'masterlock.isEncrypted', true);
-            updateStatusBar(true);
+            return; // disableProtection уже показывает уведомление
         }
+
+        const remaining = AUTO_UNLOCK_TIMEOUT - timePassed;
+        console.log(`Resuming auto-unlock timer. Remaining: ${remaining / 1000 / 60} minutes`);
+
+        vscode.commands.executeCommand('setContext', 'masterlock.isEncrypted', true);
+        updateStatusBar(true);
+
+        unlockTimer = setTimeout(async () => {
+            const choice = await vscode.window.showWarningMessage(
+                "MasterLock protection expired. Restore protection?",
+                "Restore", "Disable"
+            );
+
+            if (choice === "Restore") {
+                await context.workspaceState.update("masterlock_lock_time", Date.now());
+                await context.globalState.update("masterlock_lock_start", Date.now());
+                startAutoUnlockTimer(context);
+            } else {
+                await disableProtection(context);
+                await clearLockState(context);
+            }
+        }, remaining);
+
+        return; // ранний выход — предотвращает двойной таймер
     }
-    
-    // Стандартная проверка
-    if (!lockTime) return;
-    
-    const now = Date.now();
+
+    // Стандартная проверка: lockTime есть, но нет данных о закрытой сессии
     const diff = now - lockTime;
-    
+
     if (diff > AUTO_UNLOCK_TIMEOUT) {
         await disableProtection(context);
         await clearLockState(context);
-        
-        vscode.window.showInformationMessage(
-            '🔓 MasterLock: Files were automatically unlocked'
-        );
     } else {
         const remaining = AUTO_UNLOCK_TIMEOUT - diff;
-        console.log(`Auto-unlock timer active. Remaining: ${remaining/1000/60} minutes`);
-        
+        console.log(`Auto-unlock timer active. Remaining: ${remaining / 1000 / 60} minutes`);
+
+        vscode.commands.executeCommand('setContext', 'masterlock.isEncrypted', true);
+        updateStatusBar(true);
+
         unlockTimer = setTimeout(async () => {
             await disableProtection(context);
             await clearLockState(context);
-            
-            vscode.window.showInformationMessage(
-                '🔓 MasterLock: Files were automatically unlocked'
-            );
         }, remaining);
     }
 }
@@ -253,81 +251,83 @@ function startAutoUnlockTimer(context: vscode.ExtensionContext) {
 
     unlockTimer = setTimeout(async () => {
         const choice = await vscode.window.showWarningMessage(
-            "⏰ MasterLock: 2 hours have passed. Restore protection for another 2 hours?",
+            "MasterLock: 2 hours have passed. Restore protection for another 2 hours?",
             "Restore (another 2h)", "Unlock Now"
         );
 
         if (choice === "Restore (another 2h)") {
-            // Обновляем время блокировки
             await context.workspaceState.update("masterlock_lock_time", Date.now());
             await context.globalState.update("masterlock_lock_start", Date.now());
             startAutoUnlockTimer(context);
-            
-            vscode.window.showInformationMessage(
-                '🔒 MasterLock: Protection extended for another 2 hours'
-            );
+            vscode.window.showInformationMessage('MasterLock: Protection extended for another 2 hours');
         } else {
             await disableProtection(context);
             await clearLockState(context);
-            
-            vscode.window.showInformationMessage(
-                '🔓 MasterLock: Files were unlocked'
-            );
+            // убрать лишний showInformationMessage — disableProtection уже показывает
         }
     }, AUTO_UNLOCK_TIMEOUT);
 }
 
 // функция восстановления текста из backup при авто-разблокировке
 async function disableProtection(context: vscode.ExtensionContext) {
-    console.log('Disabling protection...');
-    
-    const backup = context.workspaceState.get<string>("masterlock_backup");
-    const fileUriString = context.workspaceState.get<string>("masterlock_file");
-    const rangeData = context.workspaceState.get<any>("masterlock_range");
+    if (isDisabling) return;
+    isDisabling = true;
 
-    if (backup && fileUriString && rangeData) {
-        try {
-            const uri = vscode.Uri.parse(fileUriString);
-            
-            // Проверяем, открыт ли файл
-            const document = await vscode.workspace.openTextDocument(uri);
-            const editor = await vscode.window.showTextDocument(document, { preview: false, preserveFocus: true });
+    try {
+        const backup = context.workspaceState.get<string>("masterlock_backup");
+        const fileUriString = context.workspaceState.get<string>("masterlock_file");
+        const rangeData = context.workspaceState.get<any>("masterlock_range");
 
-            const range = new vscode.Range(
-                new vscode.Position(rangeData.start.line, rangeData.start.character),
-                new vscode.Position(rangeData.end.line, rangeData.end.character)
-            );
+        if (backup && fileUriString && rangeData) {
+            try {
+                const uri = vscode.Uri.parse(fileUriString);
+                const document = await vscode.workspace.openTextDocument(uri);
+                const editor = await vscode.window.showTextDocument(document, { preview: false, preserveFocus: true });
 
-            await editor.edit(editBuilder => {
-                editBuilder.replace(range, backup);
-            });
+                const range = new vscode.Range(
+                    new vscode.Position(rangeData.start.line, rangeData.start.character),
+                    new vscode.Position(rangeData.end.line, rangeData.end.character)
+                );
 
-            // Показываем уведомление
-            const action = await vscode.window.showInformationMessage(
-                '🔓 MasterLock: Files automatically unlocked',
-                "Show File", "OK"
-            );
-            
-            if (action === "Show File") {
-                await vscode.commands.executeCommand('revealInExplorer', uri);
+                const success = await editor.edit(editBuilder => {
+                    editBuilder.replace(range, backup);
+                });
+
+                if (!success) {
+                    vscode.window.showErrorMessage('MasterLock: Failed to restore file. Backup is preserved.');
+                    return; // не очищаем состояние — бэкап цел
+                }
+
+                const action = await vscode.window.showInformationMessage(
+                    'MasterLock: File automatically unlocked',
+                    "Show File", "OK"
+                );
+
+                if (action === "Show File") {
+                    await vscode.commands.executeCommand('revealInExplorer', uri);
+                }
+
+            } catch (err) {
+                console.error('Error during auto-unlock:', err);
+                vscode.window.showErrorMessage(
+                    'MasterLock: Failed to auto-unlock. Backup is preserved. Check logs.'
+                );
+                return; // не очищаем состояние — бэкап цел
             }
-            
-        } catch (err) {
-            console.error('Error during auto-unlock:', err);
-            vscode.window.showErrorMessage(
-                'Failed to auto-unlock files. Please check logs.'
-            );
         }
+
+        // Очищаем только при успехе или когда бэкапа нет
+        await context.workspaceState.update("masterlock_backup", undefined);
+        await context.workspaceState.update("masterlock_file", undefined);
+        await context.workspaceState.update("masterlock_range", undefined);
+        await context.workspaceState.update("masterlock_lock_time", undefined);
+
+        await vscode.commands.executeCommand('setContext', 'masterlock.isEncrypted', false);
+        updateStatusBar(false);
+
+    } finally {
+        isDisabling = false;
     }
-
-    // очистка всех временных данных
-    await context.workspaceState.update("masterlock_backup", undefined);
-    await context.workspaceState.update("masterlock_file", undefined);
-    await context.workspaceState.update("masterlock_range", undefined);
-    await context.workspaceState.update("masterlock_lock_time", undefined);
-
-    await vscode.commands.executeCommand('setContext', 'masterlock.isEncrypted', false);
-    updateStatusBar(false);
 }
 
 // обновление статус-бара

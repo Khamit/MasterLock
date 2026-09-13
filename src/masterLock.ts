@@ -4,7 +4,6 @@ import * as vscode from 'vscode';
 import { t } from './i18n';
 import { FileRule, fileRules, shouldEncryptKey } from './struct';
 
-
 const SERVICE_NAME = 'MasterLock';
 const GITHUB_REPO = 'https://github.com/Khamit/MasterLock/issues';
 const ENCRYPT_PREFIX = "MLK1:";
