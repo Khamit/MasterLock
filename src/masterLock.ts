@@ -1,15 +1,12 @@
 import * as CryptoJS from 'crypto-js';
-import * as keytar from 'keytar';
-import * as os from 'os';
 import * as path from 'path';
 import * as vscode from 'vscode';
 import { t } from './i18n';
 import { FileRule, fileRules, shouldEncryptKey } from './struct';
 
-const SERVICE_NAME = 'MasterLock';
-const ACCOUNT_NAME = os.userInfo().username;
-const GITHUB_REPO = 'https://github.com/Khamit/MasterLock/issues';
 
+const SERVICE_NAME = 'MasterLock';
+const GITHUB_REPO = 'https://github.com/Khamit/MasterLock/issues';
 const ENCRYPT_PREFIX = "MLK1:";
 
 // функция для получения хэша пароля (SHA-256) в hex
@@ -17,13 +14,15 @@ function deriveKey(password: string): string {
     return CryptoJS.SHA256(password).toString();
 }
 
-// проверка пароля и сохранение его в keytar при первом использовании
-async function verifyPassword(password: string): Promise<string | null> {
-    const storedKey = await keytar.getPassword(SERVICE_NAME, ACCOUNT_NAME);
+// проверка пароля и сохранение его в context.secrets
+async function verifyPassword(password: string, context: vscode.ExtensionContext): Promise<string | null> {
+    // Используем встроенное безопасное хранилище VS Code
+    const storedKey = await context.secrets.get('masterlock_password_hash');
     const key = deriveKey(password);
 
     if (!storedKey) {
-        await keytar.setPassword(SERVICE_NAME, ACCOUNT_NAME, key);
+        // Первый запуск: сохраняем хэш пароля
+        await context.secrets.store('masterlock_password_hash', key);
         vscode.window.showInformationMessage(t('info_new_key'));
         return key;
     }
@@ -37,8 +36,8 @@ async function verifyPassword(password: string): Promise<string | null> {
 }
 
 // шифрование строки
-async function encryptString(text: string, password: string): Promise<string> {
-    const key = await verifyPassword(password);
+async function encryptString(text: string, password: string, context: vscode.ExtensionContext): Promise<string> {
+    const key = await verifyPassword(password, context);
     if (!key) throw new Error(t('error_getting_key'));
 
     const encrypted = CryptoJS.AES.encrypt(text, key).toString();
@@ -46,8 +45,8 @@ async function encryptString(text: string, password: string): Promise<string> {
 }
 
 // расшифровка строки
-async function decryptString(text: string, password: string): Promise<string> {
-    const key = await verifyPassword(password);
+async function decryptString(text: string, password: string, context: vscode.ExtensionContext): Promise<string> {
+    const key = await verifyPassword(password, context);
     if (!key) throw new Error(t('error_getting_key'));
 
     if (!text.startsWith(ENCRYPT_PREFIX)) {
@@ -77,6 +76,7 @@ async function processObject(
   password: string,
   encrypt: boolean,
   rule: FileRule,
+  context: vscode.ExtensionContext, // <-- context здесь
   excludeKeys: string[] = [],
   fileType: 'json' | 'env' | 'text' = 'json'
 ) {
@@ -86,13 +86,11 @@ async function processObject(
       if (item?.type === 'pair' && typeof item.value === 'string') {
         const keyForCheck = fileType === 'env' ? item.key : item.key.toLowerCase();
         
-        // исключаем определённые ключи
         if (excludeKeys.some(k => k.toLowerCase() === item.key.toLowerCase())) {
             console.log(`Skipping excluded key: ${item.key}`);
             continue;
         }
 
-        // Используем shouldEncryptKey из struct.ts
         if (!shouldEncryptKey(item.key, rule)) {
             console.log(`Skipping non-sensitive key: ${item.key}`);
             continue;
@@ -103,12 +101,12 @@ async function processObject(
 
         if (encrypt && !isEncrypted) {
           console.log(`Encrypting ${item.key}`);
-          item.value = await encryptString(item.value, password);
+          item.value = await encryptString(item.value, password, context); // <-- добавлен context
         }
         if (!encrypt && isEncrypted) {
           console.log(`Decrypting ${item.key}`);
           try {
-            item.value = await decryptString(item.value, password);
+            item.value = await decryptString(item.value, password, context); // <-- добавлен context
             console.log(`Successfully decrypted ${item.key}`);
           } catch (err) {
             console.error(`Decryption failed for key ${item.key}:`, err);
@@ -127,7 +125,8 @@ async function processObject(
 
     // Рекурсивно обрабатываем вложенные объекты и массивы
     if (value && typeof value === 'object') {
-      await processObject(value, password, encrypt, rule, excludeKeys, fileType);
+      // ИСПРАВЛЕН ПОРЯДОК: context идет перед excludeKeys
+      await processObject(value, password, encrypt, rule, context, excludeKeys, fileType);
       continue;
     }
 
@@ -144,12 +143,12 @@ async function processObject(
 
     if (encrypt && !isEncrypted) {
       console.log(`Encrypting ${key}`);
-      obj[key] = await encryptString(value, password);
+      obj[key] = await encryptString(value, password, context); // <-- добавлен context
     }
     if (!encrypt && isEncrypted) {
       console.log(`Decrypting ${key}`);
       try {
-        obj[key] = await decryptString(value, password);
+        obj[key] = await decryptString(value, password, context); // <-- добавлен context
         console.log(`Successfully decrypted ${key}`);
       } catch (err) {
         console.error(`Decryption failed for key ${key}:`, err);
@@ -250,7 +249,8 @@ export async function toggleEncryptSelection(
                 parsed, 
                 password, 
                 encrypt, 
-                rule,  // Передаем весь rule, а не только sensitiveKeys
+                rule,
+                context,
                 excludeKeys,
                 fileType
             );
@@ -345,4 +345,6 @@ git push
 
 # 3 опубликовать
 vsce publish
+=====================
+git push azure main
 */
