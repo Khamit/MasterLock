@@ -2,7 +2,7 @@
   "name": "masterlock",
   "displayName": "MasterLock",
   "description": "Encrypt sensitive data in JSON and .env files with 2h auto-unlock",
-  "version": "1.0.12",
+  "version": "1.0.13",
   "publisher": "Khamit",
   "engines": {
     "vscode": "^1.104.0"
@@ -18,12 +18,15 @@
   ],
   "main": "./out/extension.js",
   "scripts": {
-    "vscode:prepublish": "npm run compile",
+    "vscode:prepublish": "npm run package",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "package": "vsce package",
+    "esbuild": "node esbuild.js",
+    "esbuild-watch": "node esbuild.js --watch",
+    "package": "node esbuild.js --production",
     "publish": "vsce publish"
   },
+
   "contributes": {
     "commands": [
       {
@@ -68,6 +71,7 @@
     "@types/crypto-js": "^4.2.2",
     "@types/node": "^20.19.19",
     "@types/vscode": "^1.104.0",
+    "esbuild": "^0.28.2",
     "typescript": "^5.9.3"
   },
   "dependencies": {
