@@ -2,7 +2,7 @@
 
 ![VSCode](https://img.shields.io/badge/Visual%20Studio%20Code-1.67.0+-blue.svg)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue.svg)
-![Version](https://img.shields.io/badge/version-1.0.10-green.svg)
+![Version](https://img.shields.io/badge/version-1.0.14-green.svg)
 ![License](https://img.shields.io/badge/license-MIT-orange.svg)
 
 <p align="center">
