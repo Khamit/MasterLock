@@ -340,7 +340,7 @@ package.json → 1.0.11
 
 # 2 закоммитить
 git add package.json
-git commit -m "release 1.0.11"
+git commit -m "release 1.0.12"
 git push
 
 # 3 опубликовать
