@@ -332,7 +332,7 @@ GitHub репозиторий инструкций:
 
 Обновить ветку DEV 
 git add .
-git commit -m "fix: обновил icon и package.json"
+git commit -m "исправил ошибку keytar и package.json"
 git push origin dev
 ===================
 # 1 обновить версию
