@@ -182,7 +182,21 @@ code .
 
 ## Version History
 
-### Version 1.0.14 (Current)
+### Version 1.0.15 (Current)
+- **New Interactive Dashboard** with live countdown timer (updates every second).
+- **Password Management** — change master password with security confirmation.
+- **Extend Protection** button to add +2 hours instantly.
+- **Unlock Now** button for immediate file restoration.
+- Replaced all emojis with inline SVG icons (Bootstrap-style).
+- Fixed critical race conditions in auto-unlock timers.
+- Eliminated duplicate notifications with `isDisabling` flag.
+- Added 3-attempt counter for failed file restoration (prevents infinite loops).
+- Fixed `verifyPassword` being called for every key — now verified once per operation.
+- Fixed `shouldEncryptKey` false positives on short keys.
+- Dynamic version reading from `package.json`.
+- Added `masterlock.showLogo` alias for backward compatibility.
+
+### Version 1.0.14
 - Updated VS Code engine requirement to ^1.104.0.
 - Refined auto-unlock logic with persistent workspace state tracking.
 - Improved error handling and detailed error reporting with GitHub issue links.
