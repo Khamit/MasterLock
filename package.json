@@ -2,7 +2,7 @@
   "name": "masterlock",
   "displayName": "MasterLock",
   "description": "Encrypt sensitive data in JSON and .env files with 2h auto-unlock",
-  "version": "1.0.14",
+  "version": "1.0.15",
   "publisher": "Khamit",
   "engines": {
     "vscode": "^1.104.0"
@@ -13,7 +13,9 @@
   ],
   "activationEvents": [
     "onCommand:masterlock.toggleSelection",
+    "onCommand:masterlock.dashboard",
     "onCommand:masterlock.showLogo",
+    "onCommand:masterlock.changePassword",
     "onStartupFinished"
   ],
   "main": "./out/extension.js",
@@ -27,21 +29,31 @@
     "publish": "vsce publish"
   },
 
-  "contributes": {
+"contributes": {
     "commands": [
       {
         "command": "masterlock.toggleSelection",
-        "title": "MasterLock encrypt"
+        "title": "MasterLock: Toggle Encryption"
+      },
+      {
+        "command": "masterlock.dashboard",
+        "title": "MasterLock: Open Dashboard",
+        "icon": "$(shield)"
       },
       {
         "command": "masterlock.showLogo",
-        "title": "MasterLock: Show Logo"
+        "title": "MasterLock: Show Logo (Legacy)"
+      },
+      {
+        "command": "masterlock.changePassword",
+        "title": "MasterLock: Change Password"
       },
       {
         "command": "masterlock.test",
         "title": "MasterLock: Test"
       }
     ],
+
     "menus": {
       "editor/context": [
         {

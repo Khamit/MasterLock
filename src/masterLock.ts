@@ -4,56 +4,54 @@ import * as vscode from 'vscode';
 import { t } from './i18n';
 import { FileRule, fileRules, shouldEncryptKey } from './struct';
 
-const SERVICE_NAME = 'MasterLock';
 const GITHUB_REPO = 'https://github.com/Khamit/MasterLock/issues';
 const ENCRYPT_PREFIX = "MLK1:";
 
-// функция для получения хэша пароля (SHA-256) в hex
 function deriveKey(password: string): string {
     return CryptoJS.SHA256(password).toString();
 }
 
-// проверка пароля и сохранение его в context.secrets
-async function verifyPassword(password: string, context: vscode.ExtensionContext): Promise<string | null> {
-    // Используем встроенное безопасное хранилище VS Code
+// ═══════════════════════════════════════════════════════════
+// ИСПРАВЛЕНИЕ 1: verifyPassword возвращает результат + причину
+// ═══════════════════════════════════════════════════════════
+type VerifyResult = 
+    | { ok: true; key: string; isNew: boolean }
+    | { ok: false; reason: 'wrong_password' };
+
+async function verifyPassword(
+    password: string, 
+    context: vscode.ExtensionContext
+): Promise<VerifyResult> {
     const storedKey = await context.secrets.get('masterlock_password_hash');
     const key = deriveKey(password);
 
     if (!storedKey) {
-        // Первый запуск: сохраняем хэш пароля
         await context.secrets.store('masterlock_password_hash', key);
-        vscode.window.showInformationMessage(t('info_new_key'));
-        return key;
+        return { ok: true, key, isNew: true };
     }
 
     if (storedKey !== key) {
-        vscode.window.showErrorMessage(t('error_wrong_password'));
-        return null;
+        return { ok: false, reason: 'wrong_password' };
     }
 
-    return key;
+    return { ok: true, key, isNew: false };
 }
 
-// шифрование строки
-async function encryptString(text: string, password: string, context: vscode.ExtensionContext): Promise<string> {
-    const key = await verifyPassword(password, context);
-    if (!key) throw new Error(t('error_getting_key'));
-
+// ═══════════════════════════════════════════════════════════
+// ИСПРАВЛЕНИЕ 2: Верификация пароля ОДИН РАЗ, до processObject
+// ═══════════════════════════════════════════════════════════
+function encryptStringWithKey(text: string, key: string): string {
     const encrypted = CryptoJS.AES.encrypt(text, key).toString();
     return ENCRYPT_PREFIX + encrypted;
 }
 
-// расшифровка строки
-async function decryptString(text: string, password: string, context: vscode.ExtensionContext): Promise<string> {
-    const key = await verifyPassword(password, context);
-    if (!key) throw new Error(t('error_getting_key'));
-
+function decryptStringWithKey(text: string, key: string): string {
     if (!text.startsWith(ENCRYPT_PREFIX)) {
         throw new Error(t('error_invalid_format'));
     }
 
     const encrypted = text.substring(ENCRYPT_PREFIX.length);
-    
+
     try {
         const bytes = CryptoJS.AES.decrypt(encrypted, key);
         const decrypted = bytes.toString(CryptoJS.enc.Utf8);
@@ -69,111 +67,104 @@ async function decryptString(text: string, password: string, context: vscode.Ext
     }
 }
 
-// рекурсивная обработка объекта или массива для шифрования/дешифрования
+// ═══════════════════════════════════════════════════════════
+// ИСПРАВЛЕНИЕ 3: processObject принимает KEY, а не password+context
+// Убраны лишние вызовы verifyPassword на каждый ключ
+// ═══════════════════════════════════════════════════════════
 async function processObject(
-  obj: any,
-  password: string,
-  encrypt: boolean,
-  rule: FileRule,
-  context: vscode.ExtensionContext, // <-- context здесь
-  excludeKeys: string[] = [],
-  fileType: 'json' | 'env' | 'text' = 'json'
+    obj: any,
+    key: string,            // ← теперь принимает готовый ключ
+    encrypt: boolean,
+    rule: FileRule,
+    excludeKeys: string[] = [],
+    fileType: 'json' | 'env' | 'text' = 'json'
 ) {
-  // Для .env и текстовых файлов - обрабатываем массив с pair
-  if ((fileType === 'env' || fileType === 'text') && Array.isArray(obj)) {
-    for (const item of obj) {
-      if (item?.type === 'pair' && typeof item.value === 'string') {
-        const keyForCheck = fileType === 'env' ? item.key : item.key.toLowerCase();
-        
-        if (excludeKeys.some(k => k.toLowerCase() === item.key.toLowerCase())) {
-            console.log(`Skipping excluded key: ${item.key}`);
+    // Для .env и текстовых файлов
+    if ((fileType === 'env' || fileType === 'text') && Array.isArray(obj)) {
+        for (const item of obj) {
+            if (item?.type === 'pair' && typeof item.value === 'string') {
+                if (excludeKeys.some(k => k.toLowerCase() === item.key.toLowerCase())) {
+                    console.log(`Skipping excluded key: ${item.key}`);
+                    continue;
+                }
+
+                if (!shouldEncryptKey(item.key, rule)) {
+                    console.log(`Skipping non-sensitive key: ${item.key}`);
+                    continue;
+                }
+
+                const isEncrypted = item.value.startsWith(ENCRYPT_PREFIX);
+
+                if (encrypt && !isEncrypted) {
+                    console.log(`Encrypting ${item.key}`);
+                    item.value = encryptStringWithKey(item.value, key);
+                }
+                if (!encrypt && isEncrypted) {
+                    console.log(`Decrypting ${item.key}`);
+                    item.value = decryptStringWithKey(item.value, key);
+                }
+            }
+        }
+        return;
+    }
+
+    // Для JSON — обрабатываем массивы рекурсивно
+    if (Array.isArray(obj)) {
+        for (const item of obj) {
+            if (item && typeof item === 'object') {
+                await processObject(item, key, encrypt, rule, excludeKeys, fileType);
+            }
+        }
+        return;
+    }
+
+    // Для JSON объектов
+    for (const k in obj) {
+        if (!Object.prototype.hasOwnProperty.call(obj, k)) continue;
+        const value = obj[k];
+
+        if (value && typeof value === 'object') {
+            await processObject(value, key, encrypt, rule, excludeKeys, fileType);
             continue;
         }
 
-        if (!shouldEncryptKey(item.key, rule)) {
-            console.log(`Skipping non-sensitive key: ${item.key}`);
-            continue;
-        }
+        if (typeof value !== 'string') continue;
+        if (excludeKeys.some(ex => ex.toLowerCase() === k.toLowerCase())) continue;
+        if (!shouldEncryptKey(k, rule)) continue;
 
-        const isEncrypted = item.value.startsWith(ENCRYPT_PREFIX);
-        console.log(`Processing ${item.key}: isEncrypted=${isEncrypted}, encrypt=${encrypt}`);
+        const isEncrypted = value.startsWith(ENCRYPT_PREFIX);
 
         if (encrypt && !isEncrypted) {
-          console.log(`Encrypting ${item.key}`);
-          item.value = await encryptString(item.value, password, context); // <-- добавлен context
+            console.log(`Encrypting ${k}`);
+            obj[k] = encryptStringWithKey(value, key);
         }
         if (!encrypt && isEncrypted) {
-          console.log(`Decrypting ${item.key}`);
-          try {
-            item.value = await decryptString(item.value, password, context); // <-- добавлен context
-            console.log(`Successfully decrypted ${item.key}`);
-          } catch (err) {
-            console.error(`Decryption failed for key ${item.key}:`, err);
-            throw err;
-          }
+            console.log(`Decrypting ${k}`);
+            obj[k] = decryptStringWithKey(value, key);
         }
-      }
     }
-    return;
-  }
-
-  // Для JSON файлов - обрабатываем как обычный объект
-  for (const key in obj) {
-    if (!Object.prototype.hasOwnProperty.call(obj, key)) continue;
-    const value = obj[key];
-
-    // Рекурсивно обрабатываем вложенные объекты и массивы
-    if (value && typeof value === 'object') {
-      // ИСПРАВЛЕН ПОРЯДОК: context идет перед excludeKeys
-      await processObject(value, password, encrypt, rule, context, excludeKeys, fileType);
-      continue;
-    }
-
-    // Обрабатываем только строки
-    if (typeof value !== 'string') continue;
-
-    // исключаем определённые ключи
-    if (excludeKeys.some(k => k.toLowerCase() === key.toLowerCase())) continue;
-
-    // Используем shouldEncryptKey из struct.ts
-    if (!shouldEncryptKey(key, rule)) continue;
-
-    const isEncrypted = value.startsWith(ENCRYPT_PREFIX);
-
-    if (encrypt && !isEncrypted) {
-      console.log(`Encrypting ${key}`);
-      obj[key] = await encryptString(value, password, context); // <-- добавлен context
-    }
-    if (!encrypt && isEncrypted) {
-      console.log(`Decrypting ${key}`);
-      try {
-        obj[key] = await decryptString(value, password, context); // <-- добавлен context
-        console.log(`Successfully decrypted ${key}`);
-      } catch (err) {
-        console.error(`Decryption failed for key ${key}:`, err);
-        throw err;
-      }
-    }
-  }
 }
 
-// основная функция переключения шифрования выделенного текста
+// ═══════════════════════════════════════════════════════════
+// ИСПРАВЛЕНИЕ 4: toggleEncryptSelection — верификация один раз
+// + кнопка "Reset Password" при ошибке
+// ═══════════════════════════════════════════════════════════
 export async function toggleEncryptSelection(
     encrypt: boolean,
     context: vscode.ExtensionContext
 ): Promise<boolean> {
-    
+
     const editor = vscode.window.activeTextEditor;
     if (!editor) {
         vscode.window.showInformationMessage(t('info_open_file'));
         return false;
     }
-    
+
     const selection = editor.selection;
     const text = editor.document.getText(selection);
     if (!text) return false;
 
-    // ввод пароля пользователем
+    // Ввод пароля
     const password = await vscode.window.showInputBox({
         prompt: encrypt ? t('prompt_encrypt') : t('prompt_decrypt'),
         password: true,
@@ -186,10 +177,47 @@ export async function toggleEncryptSelection(
         return false;
     }
 
+    // ═══════════════════════════════════════════
+    // ВЕРИФИКАЦИЯ ПАРОЛЯ — ОДИН РАЗ!
+    // ═══════════════════════════════════════════
+    const verifyResult = await verifyPassword(password, context);
+
+    if (!verifyResult.ok) {
+        // Пароль неверный → предлагаем сброс
+        const action = await vscode.window.showErrorMessage(
+            t('error_wrong_password'),
+            "Reset Password",
+            "OK"
+        );
+
+        if (action === "Reset Password") {
+            const confirm = await vscode.window.showWarningMessage(
+                "⚠️ This will delete your saved master password. " +
+                "You won't be able to decrypt previously encrypted data! Continue?",
+                { modal: true },
+                "Yes, Reset"
+            );
+
+            if (confirm === "Yes, Reset") {
+                await context.secrets.delete('masterlock_password_hash');
+                vscode.window.showInformationMessage(
+                    "Password reset. Try encrypting again with a new password."
+                );
+            }
+        }
+        return false;
+    }
+
+    if (verifyResult.isNew) {
+        vscode.window.showInformationMessage(t('info_new_key'));
+    }
+
+    const derivedKey = verifyResult.key;
+
+    // Определяем правила
     const fileName = editor.document.fileName.toLowerCase();
     const ext = path.extname(fileName);
 
-    // определяем правила парсинга для файла
     const rule = fileRules.find(r =>
         r.extensions.some(e => fileName.endsWith(e))
     );
@@ -228,8 +256,7 @@ export async function toggleEncryptSelection(
                 const errorMessage = err instanceof Error ? err.message : String(err);
                 throw new Error(t('error_parse_failed_details', { error: errorMessage }));
             }
-            
-            // Определяем тип файла
+
             let fileType: 'json' | 'env' | 'text' = 'json';
             if (ext === '.json') {
                 fileType = 'json';
@@ -238,18 +265,19 @@ export async function toggleEncryptSelection(
             } else {
                 fileType = 'text';
             }
-            
+
             const excludeKeys = ['notes', 'message', 'name', 'description', 'version', 'module', 'mock', 'comment', 'title'];
 
             progress.report({ increment: 40, message: "Processing data..." });
-        
-            // Вызываем processObject с полным rule
+
+            // ═══════════════════════════════════════════
+            // Передаём КЛЮЧ, а не пароль + context
+            // ═══════════════════════════════════════════
             await processObject(
-                parsed, 
-                password, 
-                encrypt, 
+                parsed,
+                derivedKey,     // ← готовый ключ
+                encrypt,
                 rule,
-                context,
                 excludeKeys,
                 fileType
             );
@@ -257,7 +285,6 @@ export async function toggleEncryptSelection(
             progress.report({ increment: 30, message: "Generating output..." });
             const newText = rule.stringify(parsed);
 
-            // сохраняем backup при шифровании
             if (encrypt) {
                 await context.workspaceState.update("masterlock_backup", text);
                 await context.workspaceState.update("masterlock_file", editor.document.uri.toString());
@@ -310,6 +337,77 @@ export async function toggleEncryptSelection(
     });
 }
 
+// ═══════════════════════════════════════════════════════════
+// СМЕНА ПАРОЛЯ (с подтверждением через старый пароль)
+// ═══════════════════════════════════════════════════════════
+export async function changePassword(context: vscode.ExtensionContext): Promise<boolean> {
+    const storedKey = await context.secrets.get('masterlock_password_hash');
+    
+    // Если пароля ещё нет — просто устанавливаем
+    if (!storedKey) {
+        const newPass = await vscode.window.showInputBox({
+            prompt: "Set your MasterLock password",
+            password: true,
+            validateInput: v => v && v.length > 0 ? null : "Password cannot be empty"
+        });
+        if (!newPass) return false;
+        
+        await context.secrets.store('masterlock_password_hash', deriveKey(newPass));
+        await context.globalState.update("masterlock_password_changed_at", Date.now());
+        vscode.window.showInformationMessage("✅ MasterLock password set successfully!");
+        return true;
+    }
+
+    // Шаг 1: Подтверждение старого пароля
+    const currentPass = await vscode.window.showInputBox({
+        prompt: "Enter your CURRENT password",
+        password: true
+    });
+    if (!currentPass) return false;
+
+    if (deriveKey(currentPass) !== storedKey) {
+        vscode.window.showErrorMessage("Current password is incorrect");
+        return false;
+    }
+
+    // Шаг 2: Предупреждение о последствиях
+    const warning = await vscode.window.showWarningMessage(
+        "⚠️ WARNING: Changing the password will make ALL previously encrypted data " +
+        "impossible to decrypt! This cannot be undone.",
+        { modal: true },
+        "Yes, Change Password"
+    );
+
+    if (warning !== "Yes, Change Password") return false;
+
+    // Шаг 3: Новый пароль
+    const newPass = await vscode.window.showInputBox({
+        prompt: "Enter NEW password",
+        password: true,
+        validateInput: v => v && v.length > 0 ? null : "Password cannot be empty"
+    });
+    if (!newPass) return false;
+
+    // Шаг 4: Подтверждение
+    const confirmPass = await vscode.window.showInputBox({
+        prompt: "Confirm NEW password",
+        password: true
+    });
+    if (confirmPass !== newPass) {
+        vscode.window.showErrorMessage("Passwords don't match");
+        return false;
+    }
+
+    // Сохраняем
+    await context.secrets.store('masterlock_password_hash', deriveKey(newPass));
+    await context.globalState.update("masterlock_password_changed_at", Date.now());
+
+    vscode.window.showInformationMessage(
+        "Password changed successfully! Remember: previously encrypted data cannot be decrypted anymore."
+    );
+    return true;
+}
+
 // Команды для сборки расширения
 // npm install
 // npx tsc
@@ -325,9 +423,21 @@ export async function toggleEncryptSelection(
 // Сборка
 // vsce package
 
+
 /*
 GitHub репозиторий инструкций:
-В какой ветке  - git branch 
+чистая сборка:
+# 1. Очистка кэша npm
+npm cache clean --force
+
+# 2. Удаление папки сборки, зависимостей и лок-файла
+rm -rf out node_modules package-lock.json
+
+# 3. Установка зависимостей заново
+npm install
+
+# 4. Чистая продакшн-сборка через ваш esbuild.js
+npm run package
 
 Обновить ветку DEV 
 git add .
