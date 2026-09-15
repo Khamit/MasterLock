@@ -420,10 +420,6 @@ export async function changePassword(context: vscode.ExtensionContext): Promise<
  например в VSCodium), но для Marketplace нужен именно vsce.
  */
 
-// Сборка
-// vsce package
-
-
 /*
 GitHub репозиторий инструкций:
 чистая сборка:
@@ -438,6 +434,8 @@ npm install
 
 # 4. Чистая продакшн-сборка через ваш esbuild.js
 npm run package
+----------------------------------------------------------
+npm cache clean --force && rm -rf out node_modules package-lock.json && npm install && npm run package
 
 Обновить ветку DEV 
 git add .
@@ -445,7 +443,7 @@ git commit -m "исправил ошибку keytar и package.json"
 git push origin dev
 ===================
 # 1 обновить версию
-package.json → 1.0.11
+package.json → 1.0.ХХ
 
 # 2 закоммитить
 git add package.json
